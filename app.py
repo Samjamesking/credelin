@@ -124,7 +124,7 @@ def dashboard(rf_model, encoders, config):
     
     This system uses a **Random Forest Classifier** to predict credit delinquency:
     
-    #### 🌲 Random Forest Classifier
+    #### Random Forest Classifier
     - **Advantages**: Handles non-linear relationships, robust to outliers, provides feature importance
     - **Configuration**: 100 trees, max_depth=15, balanced classes
     - **Performance**: Excellent accuracy and recall on credit delinquency prediction
@@ -137,7 +137,7 @@ def dashboard(rf_model, encoders, config):
 
 def single_prediction(rf_model, encoders, config):
     """Single prediction page"""
-    st.header("🔮 Single Credit Delinquency Prediction")
+    st.header("Single Credit Delinquency Prediction")
     
     st.markdown("---")
     
@@ -238,7 +238,7 @@ def about():
     
     This application uses a **Random Forest Classifier** to predict credit delinquency.
     
-    #### 🌲 Random Forest Classifier
+    #### Random Forest Classifier
     **Configuration:**
     - 100 decision trees
     - Max depth: 15
