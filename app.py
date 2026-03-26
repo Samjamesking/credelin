@@ -48,9 +48,9 @@ st.markdown("""
 def load_model_artifacts():
     """Load trained model and encoders"""
     try:
-        rf_model = joblib.load('e:/New Model/credit_delinquency_rf_model.pkl')
-        encoders = joblib.load('e:/New Model/label_encoders.pkl')
-        config = joblib.load('e:/New Model/model_config.pkl')
+        rf_model = joblib.load('credit_delinquency_rf_model.pkl')
+        encoders = joblib.load('label_encoders.pkl')
+        config = joblib.load('model_config.pkl')
         return rf_model, encoders, config
     except FileNotFoundError:
         st.error("❌ Model files not found. Please train the model first by running model_training.py")
