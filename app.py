@@ -202,7 +202,7 @@ def single_prediction(rf_model, encoders, config):
         col1, col2, col3 = st.columns(3)
         with col1:
             risk_label, risk_color = get_risk_level(rf_delinquency_prob)
-            st.markdown(f"<h3 style='color: {risk_color};'>🌲 {risk_label}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color: {risk_color};'>{risk_label}</h3>", unsafe_allow_html=True)
         with col2:
             st.metric("Delinquency Risk", f"{rf_delinquency_prob:.2%}")
         with col3:
