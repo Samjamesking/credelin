@@ -302,24 +302,13 @@ def single_prediction(rf_model, encoders, config):
                     except Exception as e:
                         st.warning(f"Could not display global importance: {str(e)}")
                 
-                # --- Current Logic (Lines 304-309) ---
-                shap_values = explainer.shap_values(X)
-                
-                # Check if it's a list (common for TreeExplainer + RF)
-                if isinstance(shap_values, list):
-                    # Take index 1 for the 'Delinquent' class
-                    shap_values_delinq = shap_values[1]
-                else:
-                    # If it's already a single array, use it directly
-                    shap_values_delinq = shap_values
-                
-                # --- CRITICAL FIX for the Table/Plotting ---
-                # Ensure the values are a 1D array for the single row provided
-                if len(shap_values_delinq.shape) > 1:
-                    shap_vals_instance = shap_values_delinq[0] # Get the first (and only) row
-                else:
-                    shap_vals_instance = shap_values_delinq
-                                    
+                with col_shap2:
+                    st.markdown("#### 🎯 Individual Prediction Explanation")
+                    st.info(
+                        "Shows which features pushed the prediction towards delinquency (red) "
+                        "and which pushed it away (blue) for this specific customer."
+                    )
+                    
                     # Create individual prediction explanation
                     try:
                         # Get SHAP values for this instance
@@ -365,12 +354,16 @@ def single_prediction(rf_model, encoders, config):
                     shap_vals_flat = np.asarray(shap_values_delinq[0]).flatten()
                     input_vals_flat = np.asarray(X.iloc[0].values).flatten()
                     
+                    # Ensure all arrays have the same length
+                    n_features = min(len(shap_vals_flat), len(input_vals_flat), len(config['feature_names']))
+                    feature_names_subset = config['feature_names'][:n_features]
+                    
                     shap_explanation = pd.DataFrame({
-                        'Feature': config['feature_names'],
-                        'Input Value': input_vals_flat,
-                        'SHAP Value': shap_vals_flat,
-                        'Impact': ['Increases Risk' if float(x) > 0 else 'Decreases Risk' for x in shap_vals_flat],
-                        'Abs Impact': np.abs(shap_vals_flat)
+                        'Feature': feature_names_subset,
+                        'Input Value': input_vals_flat[:n_features],
+                        'SHAP Value': shap_vals_flat[:n_features],
+                        'Impact': ['Increases Risk' if float(x) > 0 else 'Decreases Risk' for x in shap_vals_flat[:n_features]],
+                        'Abs Impact': np.abs(shap_vals_flat[:n_features])
                     }).sort_values('Abs Impact', ascending=False)
                     
                     st.dataframe(
