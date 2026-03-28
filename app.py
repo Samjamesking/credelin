@@ -149,7 +149,7 @@ def dashboard(rf_model, encoders, config):
     """)
 
 def single_prediction(rf_model, encoders, config):
-    """Single prediction page with SHAP explainability"""
+    """Single prediction page"""
     st.header("🔮 Single Credit Delinquency Prediction")
     
     st.markdown("---")
