@@ -59,14 +59,15 @@ def load_model_artifacts():
         return None, None, None
 
 @st.cache_resource
-def create_shap_explainer(rf_model, encoders, config):
-    """Create SHAP explainer for the Random Forest model"""
+def create_shap_explainer(_rf_model):
+    """Create SHAP explainer for the Random Forest model
+    
+    Note: Parameter prefixed with _ to exclude from hashing since it's already cached
+    """
     try:
-        # Create background dataset (using training data if available)
-        explainer = shap.TreeExplainer(rf_model)
+        explainer = shap.TreeExplainer(_rf_model)
         return explainer
     except Exception as e:
-        st.warning(f"Could not create SHAP explainer: {str(e)}")
         return None
 
 def preprocess_input(data, encoders, config):
@@ -249,7 +250,7 @@ def single_prediction(rf_model, encoders, config):
         st.subheader("🔍 Explainable AI - SHAP Analysis")
         
         # Create SHAP explainer
-        explainer = create_shap_explainer(_rf_model, _encoders, config)
+        explainer = create_shap_explainer(rf_model)
         
         if explainer is not None:
             try:
@@ -453,3 +454,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
