@@ -263,9 +263,15 @@ def single_prediction(rf_model, encoders, config):
                 else:
                     shap_values_delinq = shap_values
                 
-                # Normalize to 2D array [n_samples, n_features]
-                shap_vals_2d = np.atleast_2d(shap_values_delinq)
-                n_samples, n_features = shap_vals_2d.shape
+                # Ensure 2D shape [n_samples, n_features]
+                shap_values_delinq = np.asarray(shap_values_delinq)
+                if shap_values_delinq.ndim == 1:
+                    shap_values_delinq = shap_values_delinq.reshape(1, -1)
+                elif shap_values_delinq.ndim > 2:
+                    # If 3D, squeeze to 2D
+                    shap_values_delinq = shap_values_delinq.reshape(shap_values_delinq.shape[0], -1)
+                
+                n_samples, n_features = shap_values_delinq.shape
                 
                 # Get actual feature names (limit to actual SHAP features)
                 actual_features = config['feature_names'][:n_features]
@@ -282,7 +288,7 @@ def single_prediction(rf_model, encoders, config):
                     # Create global feature importance plot
                     try:
                         # Calculate mean absolute SHAP values for all features
-                        feature_importance = np.abs(shap_vals_2d).mean(axis=0)
+                        feature_importance = np.abs(shap_values_delinq).mean(axis=0)
                         importance_df = pd.DataFrame({
                             'Feature': actual_features,
                             'Importance': feature_importance
@@ -319,7 +325,7 @@ def single_prediction(rf_model, encoders, config):
                     # Create individual prediction explanation
                     try:
                         # Get SHAP values for the first (and only) sample
-                        shap_vals_instance = shap_vals_2d[0]
+                        shap_vals_instance = shap_values_delinq[0]
                         
                         # Create dataframe for visualization
                         explanation_df = pd.DataFrame({
@@ -358,7 +364,7 @@ def single_prediction(rf_model, encoders, config):
                 
                 try:
                     # Get first sample SHAP values and input values
-                    shap_vals_instance = shap_vals_2d[0]
+                    shap_vals_instance = shap_values_delinq[0]
                     input_vals_instance = X.iloc[0].values[:n_features]
                     
                     shap_explanation = pd.DataFrame({
@@ -465,3 +471,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
