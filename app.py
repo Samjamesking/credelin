@@ -350,12 +350,16 @@ def single_prediction(rf_model, encoders, config):
                 st.markdown("#### 📈 Detailed SHAP Values")
                 
                 try:
+                    # Ensure SHAP values are 1D
+                    shap_vals_flat = np.asarray(shap_values_delinq[0]).flatten()
+                    input_vals_flat = np.asarray(X.iloc[0].values).flatten()
+                    
                     shap_explanation = pd.DataFrame({
                         'Feature': config['feature_names'],
-                        'Input Value': X.iloc[0].values,
-                        'SHAP Value': shap_values_delinq[0],
-                        'Impact': ['Increases Risk' if x > 0 else 'Decreases Risk' for x in shap_values_delinq[0]],
-                        'Abs Impact': np.abs(shap_values_delinq[0])
+                        'Input Value': input_vals_flat,
+                        'SHAP Value': shap_vals_flat,
+                        'Impact': ['Increases Risk' if float(x) > 0 else 'Decreases Risk' for x in shap_vals_flat],
+                        'Abs Impact': np.abs(shap_vals_flat)
                     }).sort_values('Abs Impact', ascending=False)
                     
                     st.dataframe(
