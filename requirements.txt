@@ -2,6 +2,9 @@ pandas
 openpyxl
 numpy
 scikit-learn
-streamlit
+streamlit>=1.28.0
 plotly
 joblib
+altair>=5.0.0
+shap
+matplotlib

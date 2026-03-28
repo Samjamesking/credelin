@@ -10,6 +10,8 @@ import joblib
 import plotly.graph_objects as go
 from pathlib import Path
 import warnings
+import shap
+import matplotlib.pyplot as plt
 warnings.filterwarnings('ignore')
 
 # Page configuration
@@ -55,6 +57,17 @@ def load_model_artifacts():
     except FileNotFoundError:
         st.error("❌ Model files not found. Please train the model first by running model_training.py")
         return None, None, None
+
+@st.cache_resource
+def create_shap_explainer(rf_model, encoders, config):
+    """Create SHAP explainer for the Random Forest model"""
+    try:
+        # Create background dataset (using training data if available)
+        explainer = shap.TreeExplainer(rf_model)
+        return explainer
+    except Exception as e:
+        st.warning(f"Could not create SHAP explainer: {str(e)}")
+        return None
 
 def preprocess_input(data, encoders, config):
     """Preprocess user input data"""
@@ -124,7 +137,7 @@ def dashboard(rf_model, encoders, config):
     
     This system uses a **Random Forest Classifier** to predict credit delinquency:
     
-    #### 🌲 Random Forest Classifier
+    #### Random Forest Classifier
     - **Advantages**: Handles non-linear relationships, robust to outliers, provides feature importance
     - **Configuration**: 100 trees, max_depth=15, balanced classes
     - **Performance**: Excellent accuracy and recall on credit delinquency prediction
@@ -136,7 +149,7 @@ def dashboard(rf_model, encoders, config):
     """)
 
 def single_prediction(rf_model, encoders, config):
-    """Single prediction page"""
+    """Single prediction page with SHAP explainability"""
     st.header("🔮 Single Credit Delinquency Prediction")
     
     st.markdown("---")
@@ -202,7 +215,7 @@ def single_prediction(rf_model, encoders, config):
         col1, col2, col3 = st.columns(3)
         with col1:
             risk_label, risk_color = get_risk_level(rf_delinquency_prob)
-            st.markdown(f"<h3 style='color: {risk_color};'>🌲 {risk_label}</h3>", unsafe_allow_html=True)
+            st.markdown(f"<h3 style='color: {risk_color};'>{risk_label}</h3>", unsafe_allow_html=True)
         with col2:
             st.metric("Delinquency Risk", f"{rf_delinquency_prob:.2%}")
         with col3:
@@ -228,6 +241,138 @@ def single_prediction(rf_model, encoders, config):
             font=dict(color='#F8FAFC')
         )
         st.plotly_chart(fig, use_container_width='stretch')
+        
+        # ============================================
+        # SHAP EXPLAINABILITY SECTION
+        # ============================================
+        st.markdown("---")
+        st.subheader("🔍 Explainable AI - SHAP Analysis")
+        
+        # Create SHAP explainer
+        explainer = create_shap_explainer(rf_model, encoders, config)
+        
+        if explainer is not None:
+            try:
+                # Calculate SHAP values for this prediction
+                shap_values = explainer.shap_values(X)
+                
+                # For binary classification, take the positive class (delinquency)
+                if isinstance(shap_values, list):
+                    shap_values_delinq = shap_values[1]
+                else:
+                    shap_values_delinq = shap_values
+                
+                col_shap1, col_shap2 = st.columns(2)
+                
+                with col_shap1:
+                    st.markdown("#### 📊 Global Feature Importance")
+                    st.info(
+                        "Shows which features are most important for the model overall, "
+                        "based on average absolute SHAP values across all predictions."
+                    )
+                    
+                    # Create global feature importance plot
+                    try:
+                        # Calculate mean absolute SHAP values for all features
+                        feature_importance = np.abs(shap_values_delinq).mean(axis=0)
+                        importance_df = pd.DataFrame({
+                            'Feature': config['feature_names'],
+                            'Importance': feature_importance
+                        }).sort_values('Importance', ascending=False).head(10)
+                        
+                        fig_importance = go.Figure(data=[
+                            go.Bar(
+                                y=importance_df['Feature'],
+                                x=importance_df['Importance'],
+                                orientation='h',
+                                marker=dict(color='#3B82F6')
+                            )
+                        ])
+                        fig_importance.update_layout(
+                            title="Top 10 Most Important Features",
+                            xaxis_title="Mean |SHAP value|",
+                            height=400,
+                            paper_bgcolor='#0F172A',
+                            plot_bgcolor='#1E293B',
+                            font=dict(color='#F8FAFC'),
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_importance, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Could not display global importance: {str(e)}")
+                
+                with col_shap2:
+                    st.markdown("#### 🎯 Individual Prediction Explanation")
+                    st.info(
+                        "Shows which features pushed the prediction towards delinquency (red) "
+                        "and which pushed it away (blue) for this specific customer."
+                    )
+                    
+                    # Create individual prediction explanation
+                    try:
+                        # Get SHAP values for this instance
+                        shap_vals_instance = shap_values_delinq[0]
+                        
+                        # Create dataframe for visualization
+                        explanation_df = pd.DataFrame({
+                            'Feature': config['feature_names'],
+                            'SHAP Value': shap_vals_instance,
+                            'Abs SHAP': np.abs(shap_vals_instance)
+                        }).sort_values('Abs SHAP', ascending=False).head(10)
+                        
+                        # Determine colors: red for positive (towards delinquency), blue for negative
+                        colors = ['#EF4444' if x > 0 else '#3B82F6' for x in explanation_df['SHAP Value']]
+                        
+                        fig_explain = go.Figure(data=[
+                            go.Bar(
+                                y=explanation_df['Feature'],
+                                x=explanation_df['SHAP Value'],
+                                orientation='h',
+                                marker=dict(color=colors)
+                            )
+                        ])
+                        fig_explain.update_layout(
+                            title="Top 10 Features Affecting This Prediction",
+                            xaxis_title="SHAP Value (Red=Towards Delinquency, Blue=Away from Delinquency)",
+                            height=400,
+                            paper_bgcolor='#0F172A',
+                            plot_bgcolor='#1E293B',
+                            font=dict(color='#F8FAFC'),
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_explain, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Could not display prediction explanation: {str(e)}")
+                
+                # Detailed SHAP explanation table
+                st.markdown("---")
+                st.markdown("#### 📈 Detailed SHAP Values")
+                
+                try:
+                    shap_explanation = pd.DataFrame({
+                        'Feature': config['feature_names'],
+                        'Input Value': X.iloc[0].values,
+                        'SHAP Value': shap_values_delinq[0],
+                        'Impact': ['Increases Risk' if x > 0 else 'Decreases Risk' for x in shap_values_delinq[0]],
+                        'Abs Impact': np.abs(shap_values_delinq[0])
+                    }).sort_values('Abs Impact', ascending=False)
+                    
+                    st.dataframe(
+                        shap_explanation.style.format({
+                            'Input Value': '{:.4f}',
+                            'SHAP Value': '{:.6f}',
+                            'Abs Impact': '{:.6f}'
+                        }),
+                        use_container_width=True,
+                        height=500
+                    )
+                except Exception as e:
+                    st.warning(f"Could not display SHAP table: {str(e)}")
+                    
+            except Exception as e:
+                st.error(f"Error calculating SHAP values: {str(e)}")
+        else:
+            st.warning("SHAP explainer could not be created. Proceeding with standard predictions only.")
 
 def about():
     """About page"""
@@ -238,7 +383,7 @@ def about():
     
     This application uses a **Random Forest Classifier** to predict credit delinquency.
     
-    #### 🌲 Random Forest Classifier
+    #### Random Forest Classifier
     **Configuration:**
     - 100 decision trees
     - Max depth: 15
