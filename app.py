@@ -302,13 +302,24 @@ def single_prediction(rf_model, encoders, config):
                     except Exception as e:
                         st.warning(f"Could not display global importance: {str(e)}")
                 
-                with col_shap2:
-                    st.markdown("#### 🎯 Individual Prediction Explanation")
-                    st.info(
-                        "Shows which features pushed the prediction towards delinquency (red) "
-                        "and which pushed it away (blue) for this specific customer."
-                    )
-                    
+                # --- Current Logic (Lines 304-309) ---
+                shap_values = explainer.shap_values(X)
+                
+                # Check if it's a list (common for TreeExplainer + RF)
+                if isinstance(shap_values, list):
+                    # Take index 1 for the 'Delinquent' class
+                    shap_values_delinq = shap_values[1]
+                else:
+                    # If it's already a single array, use it directly
+                    shap_values_delinq = shap_values
+                
+                # --- CRITICAL FIX for the Table/Plotting ---
+                # Ensure the values are a 1D array for the single row provided
+                if len(shap_values_delinq.shape) > 1:
+                    shap_vals_instance = shap_values_delinq[0] # Get the first (and only) row
+                else:
+                    shap_vals_instance = shap_values_delinq
+                                    
                     # Create individual prediction explanation
                     try:
                         # Get SHAP values for this instance
