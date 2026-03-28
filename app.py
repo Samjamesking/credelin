@@ -447,7 +447,7 @@ def main():
     if page == "Dashboard":
         dashboard(rf_model, encoders, config)
     elif page == "Single Prediction":
-        single_prediction(_rf_model, _encoders, config)
+        single_prediction(_rf_model, encoders, config)
     else:
         about()
 
