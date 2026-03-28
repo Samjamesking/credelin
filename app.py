@@ -274,10 +274,13 @@ def single_prediction(rf_model, encoders, config):
                     
                     # Create global feature importance plot
                     try:
+                        # Ensure SHAP values are properly formatted (2D array with shape [n_samples, n_features])
+                        shap_vals_2d = np.asarray(shap_values_delinq).reshape(1, -1) if np.asarray(shap_values_delinq).ndim == 1 else np.asarray(shap_values_delinq)
+                        
                         # Calculate mean absolute SHAP values for all features
-                        feature_importance = np.abs(shap_values_delinq).mean(axis=0)
+                        feature_importance = np.abs(shap_vals_2d).mean(axis=0).flatten()
                         importance_df = pd.DataFrame({
-                            'Feature': config['feature_names'],
+                            'Feature': config['feature_names'][:len(feature_importance)],
                             'Importance': feature_importance
                         }).sort_values('Importance', ascending=False).head(10)
                         
@@ -311,12 +314,12 @@ def single_prediction(rf_model, encoders, config):
                     
                     # Create individual prediction explanation
                     try:
-                        # Get SHAP values for this instance
-                        shap_vals_instance = shap_values_delinq[0]
+                        # Get SHAP values for this instance and ensure it's 1D
+                        shap_vals_instance = np.asarray(shap_values_delinq[0]).flatten() if np.asarray(shap_values_delinq).ndim > 1 else np.asarray(shap_values_delinq).flatten()
                         
                         # Create dataframe for visualization
                         explanation_df = pd.DataFrame({
-                            'Feature': config['feature_names'],
+                            'Feature': config['feature_names'][:len(shap_vals_instance)],
                             'SHAP Value': shap_vals_instance,
                             'Abs SHAP': np.abs(shap_vals_instance)
                         }).sort_values('Abs SHAP', ascending=False).head(10)
@@ -462,4 +465,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
