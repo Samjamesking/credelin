@@ -249,7 +249,7 @@ def single_prediction(rf_model, encoders, config):
         st.subheader("🔍 Explainable AI - SHAP Analysis")
         
         # Create SHAP explainer
-        explainer = create_shap_explainer(rf_model, encoders, config)
+        explainer = create_shap_explainer(_rf_model, _encoders, config)
         
         if explainer is not None:
             try:
