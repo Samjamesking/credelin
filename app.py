@@ -246,146 +246,145 @@ def single_prediction(rf_model, encoders, config):
         # ============================================
         # SHAP EXPLAINABILITY SECTION
         # ============================================
-        # ============================================
-# SHAP EXPLAINABILITY SECTION (FIXED)
-# ============================================
-st.markdown("---")
-st.subheader("🔍 Explainable AI - SHAP Analysis")
-
-explainer = create_shap_explainer(rf_model)
-
-if explainer is not None:
-    try:
-        # ✅ NEW SHAP API (IMPORTANT FIX)
-        shap_values = explainer(X)
-
-        # Extract values properly
-        shap_vals = shap_values.values  # shape: (1, n_features)
-
-        # Feature names MUST come from X
-        feature_names = X.columns.tolist()
-
-        col_shap1, col_shap2 = st.columns(2)
-
-        # ========================================
-        # 📊 GLOBAL FEATURE IMPORTANCE
-        # ========================================
-        with col_shap1:
-            st.markdown("#### 📊 Global Feature Importance")
-
-            try:
-                # Mean absolute SHAP values
-                feature_importance = np.abs(shap_vals).mean(axis=0)
-
-                importance_df = pd.DataFrame({
-                    'Feature': feature_names,
-                    'Importance': feature_importance
-                }).sort_values('Importance', ascending=False).head(10)
-
-                fig_importance = go.Figure(data=[
-                    go.Bar(
-                        y=importance_df['Feature'],
-                        x=importance_df['Importance'],
-                        orientation='h'
-                    )
-                ])
-
-                fig_importance.update_layout(
-                    title="Top 10 Most Important Features",
-                    xaxis_title="Mean |SHAP value|",
-                    height=400,
-                    paper_bgcolor='#0F172A',
-                    plot_bgcolor='#1E293B',
-                    font=dict(color='#F8FAFC'),
-                    showlegend=False
-                )
-
-                st.plotly_chart(fig_importance, use_container_width=True)
-
-            except Exception as e:
-                st.warning(f"Could not display global importance: {str(e)}")
-
-        # ========================================
-        # 🎯 INDIVIDUAL EXPLANATION
-        # ========================================
-        with col_shap2:
-            st.markdown("#### 🎯 Individual Prediction Explanation")
-
-            try:
-                shap_vals_instance = shap_vals[0]
-
-                explanation_df = pd.DataFrame({
-                    'Feature': feature_names,
-                    'SHAP Value': shap_vals_instance,
-                    'Abs SHAP': np.abs(shap_vals_instance)
-                }).sort_values('Abs SHAP', ascending=False).head(10)
-
-                colors = ['#EF4444' if x > 0 else '#3B82F6'
-                          for x in explanation_df['SHAP Value']]
-
-                fig_explain = go.Figure(data=[
-                    go.Bar(
-                        y=explanation_df['Feature'],
-                        x=explanation_df['SHAP Value'],
-                        orientation='h',
-                        marker=dict(color=colors)
-                    )
-                ])
-
-                fig_explain.update_layout(
-                    title="Top Features Affecting This Prediction",
-                    xaxis_title="SHAP Value",
-                    height=400,
-                    paper_bgcolor='#0F172A',
-                    plot_bgcolor='#1E293B',
-                    font=dict(color='#F8FAFC'),
-                    showlegend=False
-                )
-
-                st.plotly_chart(fig_explain, use_container_width=True)
-
-            except Exception as e:
-                st.warning(f"Could not display prediction explanation: {str(e)}")
-
-        # ========================================
-        # 📈 DETAILED SHAP TABLE
-        # ========================================
         st.markdown("---")
-        st.markdown("#### 📈 Detailed SHAP Values")
-
-        try:
-            shap_vals_instance = shap_vals[0]
-            input_vals = X.iloc[0].values
-
-            shap_explanation = pd.DataFrame({
-                'Feature': feature_names,
-                'Input Value': input_vals,
-                'SHAP Value': shap_vals_instance,
-                'Impact': [
-                    'Increases Risk' if x > 0 else 'Decreases Risk'
-                    for x in shap_vals_instance
-                ],
-                'Abs Impact': np.abs(shap_vals_instance)
-            }).sort_values('Abs Impact', ascending=False)
-
-            st.dataframe(
-                shap_explanation.style.format({
-                    'Input Value': '{:.4f}',
-                    'SHAP Value': '{:.6f}',
-                    'Abs Impact': '{:.6f}'
-                }),
-                use_container_width=True,
-                height=500
-            )
-
-        except Exception as e:
-            st.warning(f"Could not display SHAP table: {str(e)}")
-
-    except Exception as e:
-        st.error(f"Error calculating SHAP values: {str(e)}")
-
-else:
-    st.warning("SHAP explainer could not be created.")
+        st.subheader("🔍 Explainable AI - SHAP Analysis")
+        
+        # Create SHAP explainer
+        explainer = create_shap_explainer(rf_model)
+        
+        if explainer is not None:
+            try:
+                # Calculate SHAP values for this prediction
+                shap_values = explainer.shap_values(X)
+                
+                # For binary classification, take the positive class (delinquency)
+                if isinstance(shap_values, list):
+                    shap_values_delinq = shap_values[1]
+                else:
+                    shap_values_delinq = shap_values
+                
+                # Normalize to 2D array [n_samples, n_features]
+                shap_vals_2d = np.atleast_2d(shap_values_delinq)
+                n_samples, n_features = shap_vals_2d.shape
+                
+                # Get actual feature names (limit to actual SHAP features)
+                actual_features = config['feature_names'][:n_features]
+                
+                col_shap1, col_shap2 = st.columns(2)
+                
+                with col_shap1:
+                    st.markdown("#### 📊 Global Feature Importance")
+                    st.info(
+                        "Shows which features are most important for the model overall, "
+                        "based on average absolute SHAP values across all predictions."
+                    )
+                    
+                    # Create global feature importance plot
+                    try:
+                        # Calculate mean absolute SHAP values for all features
+                        feature_importance = np.abs(shap_vals_2d).mean(axis=0)
+                        importance_df = pd.DataFrame({
+                            'Feature': actual_features,
+                            'Importance': feature_importance
+                        }).sort_values('Importance', ascending=False).head(10)
+                        
+                        fig_importance = go.Figure(data=[
+                            go.Bar(
+                                y=importance_df['Feature'],
+                                x=importance_df['Importance'],
+                                orientation='h',
+                                marker=dict(color='#3B82F6')
+                            )
+                        ])
+                        fig_importance.update_layout(
+                            title="Top 10 Most Important Features",
+                            xaxis_title="Mean |SHAP value|",
+                            height=400,
+                            paper_bgcolor='#0F172A',
+                            plot_bgcolor='#1E293B',
+                            font=dict(color='#F8FAFC'),
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_importance, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Could not display global importance: {str(e)}")
+                
+                with col_shap2:
+                    st.markdown("#### 🎯 Individual Prediction Explanation")
+                    st.info(
+                        "Shows which features pushed the prediction towards delinquency (red) "
+                        "and which pushed it away (blue) for this specific customer."
+                    )
+                    
+                    # Create individual prediction explanation
+                    try:
+                        # Get SHAP values for the first (and only) sample
+                        shap_vals_instance = shap_vals_2d[0]
+                        
+                        # Create dataframe for visualization
+                        explanation_df = pd.DataFrame({
+                            'Feature': actual_features,
+                            'SHAP Value': shap_vals_instance,
+                            'Abs SHAP': np.abs(shap_vals_instance)
+                        }).sort_values('Abs SHAP', ascending=False).head(10)
+                        
+                        # Determine colors: red for positive (towards delinquency), blue for negative
+                        colors = ['#EF4444' if float(x) > 0 else '#3B82F6' for x in explanation_df['SHAP Value']]
+                        
+                        fig_explain = go.Figure(data=[
+                            go.Bar(
+                                y=explanation_df['Feature'],
+                                x=explanation_df['SHAP Value'],
+                                orientation='h',
+                                marker=dict(color=colors)
+                            )
+                        ])
+                        fig_explain.update_layout(
+                            title="Top 10 Features Affecting This Prediction",
+                            xaxis_title="SHAP Value (Red=Towards Delinquency, Blue=Away from Delinquency)",
+                            height=400,
+                            paper_bgcolor='#0F172A',
+                            plot_bgcolor='#1E293B',
+                            font=dict(color='#F8FAFC'),
+                            showlegend=False
+                        )
+                        st.plotly_chart(fig_explain, use_container_width=True)
+                    except Exception as e:
+                        st.warning(f"Could not display prediction explanation: {str(e)}")
+                
+                # Detailed SHAP explanation table
+                st.markdown("---")
+                st.markdown("#### 📈 Detailed SHAP Values")
+                
+                try:
+                    # Get first sample SHAP values and input values
+                    shap_vals_instance = shap_vals_2d[0]
+                    input_vals_instance = X.iloc[0].values[:n_features]
+                    
+                    shap_explanation = pd.DataFrame({
+                        'Feature': actual_features,
+                        'Input Value': input_vals_instance,
+                        'SHAP Value': shap_vals_instance,
+                        'Impact': ['Increases Risk' if float(x) > 0 else 'Decreases Risk' for x in shap_vals_instance],
+                        'Abs Impact': np.abs(shap_vals_instance)
+                    }).sort_values('Abs Impact', ascending=False)
+                    
+                    st.dataframe(
+                        shap_explanation.style.format({
+                            'Input Value': '{:.4f}',
+                            'SHAP Value': '{:.6f}',
+                            'Abs Impact': '{:.6f}'
+                        }),
+                        use_container_width=True,
+                        height=500
+                    )
+                except Exception as e:
+                    st.warning(f"Could not display SHAP table: {str(e)}")
+                    
+            except Exception as e:
+                st.error(f"Error calculating SHAP values: {str(e)}")
+        else:
+            st.warning("SHAP explainer could not be created. Proceeding with standard predictions only.")
 
 def about():
     """About page"""
@@ -466,5 +465,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
